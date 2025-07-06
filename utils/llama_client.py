@@ -1,22 +1,31 @@
-"""Liten wrapper rundt Ollama REST‑API."""
-import os, requests, json
-from dotenv import load_dotenv
+"""
+Enkel HTTP-klient for Ollama.
+"""
 
-load_dotenv()
+import os
+import requests
+
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-MODEL = os.getenv("MODEL_NAME", "llama3:8b")
+MODEL_NAME  = os.getenv("MODEL_NAME",  "llama3:8b")
 
-
-def ask_llama(prompt: str, *, system: str = "", temp: float = 0.2, max_tokens: int = 1024) -> str:
-    body = {
-        "model": MODEL,
+def ask_llama(
+    prompt: str,
+    temperature: float = 0.3,
+    max_tokens: int = 400,
+) -> str:
+    """Returnerer ren tekstrespons fra /api/generate."""
+    payload = {
+        "model": MODEL_NAME,
         "prompt": prompt,
-        "system": system,
+        "temperature": temperature,
+        "num_predict": max_tokens,
         "stream": False,
-        "temperature": temp,
-        "top_p": 0.95,
-        "max_tokens": max_tokens,
     }
-    r = requests.post(f"{OLLAMA_HOST}/api/generate", json=body, timeout=600)
-    r.raise_for_status()
-    return json.loads(r.text)["response"]
+
+    try:
+        # dropp timeout helt (→ ingen grense) ― eller sett f.eks. timeout=120
+        r = requests.post(f"{OLLAMA_HOST}/api/generate", json=payload)
+        r.raise_for_status()
+        return r.json().get("response", "")
+    except requests.RequestException as exc:
+        return f"[Feil fra Ollama: {exc}]"
